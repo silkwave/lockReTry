@@ -33,7 +33,7 @@ public class LockRetryTemplate {
             try {
                 T result = action.get(); // 비즈니스 로직 실행
                 if (attempt > 0) {
-                    log.info("작업 성공 (재시도 횟수: {})", attempt);
+                    log.error("작업 성공 (재시도 횟수: {})", attempt);
                 }
                 return result;
             } catch (Exception e) {
@@ -41,7 +41,7 @@ public class LockRetryTemplate {
                 if (retryStrategy.shouldRetry(e, attempt)) {
                     attempt++; // 시도 횟수 증가
                     long waitTime = retryStrategy.getWaitTime(attempt); // 다음 재시도까지 대기 시간 계산
-                    log.warn("락 충돌 감지 (ORA-00054). {}/{} 번째 재시도를 {}ms 후에 수행합니다...",
+                    log.error("락 충돌 감지 (ORA-00054). {}/{} 번째 재시도를 {}ms 후에 수행합니다...",
                             attempt, 3, waitTime); // 로그 메시지 수정 (MAX_RETRIES는 RandomBackoffRetryStrategy에서 관리되므로 상수 대신 메시지에 3을 명시)
                     
                     try {
