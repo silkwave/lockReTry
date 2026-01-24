@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.lockretry.mapper.AccountMapper">
+
+    <select id="selectAccountForUpdate" resultType="com.example.lockretry.domain.AccountDto">
+        SELECT
+            ACCOUNT_NO,
+            USER_NAME,
+            BALANCE,
+            UPDATE_DATE
+        FROM ACCOUNT
+        WHERE ACCOUNT_NO = #{accountNo}
+        FOR UPDATE NOWAIT
+    </select>
+
+    <update id="updateBalance">
+        UPDATE ACCOUNT
+        SET
+            BALANCE = #{balance},
+            UPDATE_DATE = SYSDATE
+        WHERE
+            ACCOUNT_NO = #{accountNo}
+    </update>
+
+</mapper>
