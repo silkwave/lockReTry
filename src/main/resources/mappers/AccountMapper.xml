@@ -1,7 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--
+    MyBatis 매퍼 파일입니다.
+    com.example.lockretry.mapper.AccountMapper 인터페이스와 연결됩니다.
+-->
 <mapper namespace="com.example.lockretry.mapper.AccountMapper">
 
+    <!--
+        특정 계좌 번호에 해당하는 계좌 정보를 `FOR UPDATE NOWAIT`를 사용하여 조회합니다.
+        `FOR UPDATE NOWAIT`는 해당 행에 대해 쓰기 락을 즉시 시도하고,
+        락 획득이 불가능할 경우 대기하지 않고 즉시 예외를 발생시킵니다.
+    -->
     <select id="selectAccountForUpdate" resultType="com.example.lockretry.domain.AccountDto">
         SELECT
             ACCOUNT_NO,
@@ -13,6 +22,10 @@
         FOR UPDATE NOWAIT
     </select>
 
+    <!--
+        계좌의 잔액을 업데이트합니다.
+        `ACCOUNT_NO`를 기준으로 해당 계좌의 `BALANCE`와 `UPDATE_DATE`를 변경합니다.
+    -->
     <update id="updateBalance">
         UPDATE ACCOUNT
         SET

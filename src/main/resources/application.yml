@@ -4,6 +4,12 @@ spring:
     driverClassName: org.h2.Driver
     username: sa
     password:
+    hikari: # HikariCP 설정 추가
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000 # 30 seconds
+      idle-timeout: 600000 # 10 minutes
+      max-lifetime: 1800000 # 30 minutes    
   h2:
     console:
       enabled: true
@@ -13,3 +19,7 @@ mybatis:
   mapper-locations: classpath:/mappers/**/*.xml
   configuration:
     map-underscore-to-camel-case: true
+
+logging:
+  level:
+    "[com.example.lockretry]": DEBUG
