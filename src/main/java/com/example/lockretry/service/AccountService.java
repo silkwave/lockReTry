@@ -26,8 +26,8 @@ public class AccountService {
 
     /**
      * 특정 계좌에 금액을 입금합니다.
-     * 트랜잭션 내에서 계좌 정보를 락을 걸어 조회하고, 잔액을 업데이트합니다.
-     * 락 획득 시도 중 충돌이 발생하면 LockRetryTemplate을 통해 재시도합니다.
+     * 전체 입금 과정을 단일 트랜잭션으로 처리하고, 락 충돌 발생 시 재시도합니다.
+     * 트랜잭션 경계를 명확히 하여 Spring의 자동 롤백을 활용합니다.
      *
      * @param accountNo 입금할 계좌 번호
      * @param amount 입금할 금액
@@ -37,11 +37,27 @@ public class AccountService {
     public void deposit(String accountNo, BigDecimal amount) {
         log.debug("입금 요청 - 계좌: {}, 금액: {}", accountNo, amount);
 
-        // 1. 락 획득 (재시도 전략 적용)
-        AccountDto account = lockRetryTemplate.execute(() -> {
-            log.debug("락 획득 시도 (DB 조회) - 계좌: {}", accountNo);
-            return accountMapper.selectAccountForUpdate(accountNo);
+        // 트랜잭션 내에서 재시도 로직 수행
+        lockRetryTemplate.execute(() -> {
+            // 비즈니스 로직 실행 (별도 메서드로 분리)
+            return depositLogic(accountNo, amount);
         });
+    }
+
+    /**
+     * 실제 입금 비즈니스 로직을 수행합니다.
+     * 이 메서드는 트랜잭션 내부에서 호출되므로 @Transactional이 필요 없습니다.
+     *
+     * @param accountNo 입금할 계좌 번호
+     * @param amount 입금할 금액
+     * @return 처리 결과
+     * @throws IllegalArgumentException 계좌를 찾을 수 없을 경우
+     */
+    private Void depositLogic(String accountNo, BigDecimal amount) {
+        log.debug("락 획득 시도 (DB 조회) - 계좌: {}", accountNo);
+        
+        // 1. 락 획득
+        AccountDto account = accountMapper.selectAccountForUpdate(accountNo);
 
         if (account == null) {
             log.warn("계좌를 찾을 수 없습니다: {}", accountNo);
@@ -56,5 +72,7 @@ public class AccountService {
         // 3. 업데이트: 변경된 잔액을 데이터베이스에 반영
         accountMapper.updateBalance(account);
         log.debug("입금 완료. 새로운 잔액: {}", account.getBalance());
+        
+        return null;
     }
 }

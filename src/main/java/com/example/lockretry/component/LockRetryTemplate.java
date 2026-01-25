@@ -52,7 +52,12 @@ public class LockRetryTemplate {
                     }
                 } else {
                     log.error("재시도 중단. 시도 횟수: {}, 원인: {}", attempt, e.getMessage());
-                    throw new RuntimeException("재시도 대상이 아니거나 최대 재시도 횟수 초과 시 예외 전파", e);
+                    // 예외를 래핑하지 않고 원본 예외를 그대로 전파하여 Spring의 롤백 동작 유지
+                    if (e instanceof RuntimeException) {
+                        throw (RuntimeException) e;
+                    } else {
+                        throw new RuntimeException("재시도 대상이 아니거나 최대 재시도 횟수 초과", e);
+                    }
                 }
             }
         }
