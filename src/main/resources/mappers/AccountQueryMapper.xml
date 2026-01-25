@@ -3,10 +3,10 @@
 <mapper namespace="com.example.lockretry.mapper.AccountQueryMapper">
     <select id="selectAccount" resultType="com.example.lockretry.domain.AccountDto">
         SELECT
-            ACCOUNT_NO,
-            USER_NAME,
-            BALANCE,
-            UPDATE_DATE
+            ACCOUNT_NO as accountNo,
+            USER_NAME as userName,
+            BALANCE as balance,
+            UPDATE_DATE as updateDate
         FROM ACCOUNT
         WHERE ACCOUNT_NO = #{accountNo}
     </select>
