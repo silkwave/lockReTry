@@ -33,7 +33,7 @@ public class AccountService {
      * @param amount 입금할 금액
      * @throws IllegalArgumentException 계좌를 찾을 수 없을 경우
      */
-    //  @Transactional
+    @Transactional
     public void deposit(String accountNo, BigDecimal amount) {
         log.debug("입금 요청 - 계좌: {}, 금액: {}", accountNo, amount);
 
