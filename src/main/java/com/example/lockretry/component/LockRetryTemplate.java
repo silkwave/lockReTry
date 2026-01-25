@@ -1,8 +1,8 @@
 package com.example.lockretry.component;
 
 import com.example.lockretry.strategy.RetryStrategy;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.util.function.Supplier;
@@ -11,13 +11,17 @@ import java.util.function.Supplier;
  * 데이터베이스 락 충돌 시 재시도 로직을 처리하는 템플릿 클래스입니다.
  * Strategy Pattern을 사용하여 다양한 재시도 정책을 유연하게 적용할 수 있도록 합니다.
  */
-@Slf4j
 @Component
-@RequiredArgsConstructor
 public class LockRetryTemplate {
+
+    private static final Logger log = LoggerFactory.getLogger(LockRetryTemplate.class);
 
     /** 재시도 정책을 정의하는 인터페이스 */
     private final RetryStrategy retryStrategy;
+
+    public LockRetryTemplate(RetryStrategy retryStrategy) {
+        this.retryStrategy = retryStrategy;
+    }
 
     /**
      * 락 충돌 발생 가능성이 있는 작업을 재시도 전략에 따라 실행합니다.

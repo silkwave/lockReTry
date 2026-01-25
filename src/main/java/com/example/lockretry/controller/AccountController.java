@@ -1,7 +1,7 @@
 package com.example.lockretry.controller;
 
 import com.example.lockretry.service.AccountService;
-import lombok.RequiredArgsConstructor;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -14,11 +14,14 @@ import java.math.BigDecimal;
  * 클라이언트로부터 입금 요청을 받아 AccountService를 통해 비즈니스 로직을 수행합니다.
  */
 @RestController
-@RequiredArgsConstructor
 public class AccountController {
 
     /** 계좌 관련 비즈니스 로직을 처리하는 서비스 */
     private final AccountService accountService;
+
+    public AccountController(AccountService accountService) {
+        this.accountService = accountService;
+    }
 
     /**
      * 계좌에 입금하는 POST 요청을 처리합니다.

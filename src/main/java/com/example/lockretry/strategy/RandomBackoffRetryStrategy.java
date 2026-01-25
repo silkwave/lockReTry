@@ -3,7 +3,7 @@ package com.example.lockretry.strategy;
 import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.stereotype.Component;
 
-import lombok.extern.slf4j.Slf4j;
+
 
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -12,26 +12,51 @@ import java.util.concurrent.ThreadLocalRandom;
  * 락 획득 실패 시, 정해진 최대 재시도 횟수까지 랜덤한 시간만큼 대기 후 재시도합니다.
  * 이를 통해 동시성 충돌 발생 시 여러 트랜잭션이 동시에 재시도하여 다시 충돌하는 현상을 줄입니다.
  */
-@Slf4j
 @Component
 public class RandomBackoffRetryStrategy implements RetryStrategy {
 
+    /**
+     * 기본 설정값으로 랜덤 백오프 전략을 생성합니다.
+     */
+    public RandomBackoffRetryStrategy() {
+        this(10, 100, 200, 2000); // 최대 10회, 100ms 기본, 200ms 지터, 최대 2초
+    }
+
+    /**
+     * 지정된 설정값으로 랜덤 백오프 전략을 생성합니다.
+     * 
+     * @param maxRetries 최대 재시도 횟수
+     * @param baseWaitTimeMs 기본 대기 시간 (밀리초)
+     * @param maxJitterMs 최대 지터 시간 (밀리초)
+     * @param maxWaitTimeMs 최대 대기 시간 (밀리초)
+     */
+    public RandomBackoffRetryStrategy(int maxRetries, long baseWaitTimeMs, 
+                                     long maxJitterMs, long maxWaitTimeMs) {
+        this.maxRetries = maxRetries;
+        this.baseWaitTimeMs = baseWaitTimeMs;
+        this.maxJitterMs = maxJitterMs;
+        this.maxWaitTimeMs = maxWaitTimeMs;
+        
+        System.out.println(String.format("랜덤 백오프 재시도 전략 초기화 - 최대 재시도: %d회, 기본 대기: %dms, 최대 지터: %dms, 최대 대기: %dms", 
+                                        maxRetries, baseWaitTimeMs, maxJitterMs, maxWaitTimeMs));
+    }
+
     /** 최대 재시도 횟수 */
-    private static final int MAX_RETRIES = 10;
+    private final int maxRetries;
     /** 재시도 간 기본 대기 시간 (밀리초) */
-    private static final long BASE_WAIT_TIME_MS = 100; // 기본 대기 0.1초
+    private final long baseWaitTimeMs;
     /** 기본 대기 시간에 추가될 랜덤 지터(Jitter)의 최대값 (밀리초) */
-    private static final long MAX_JITTER_MS = 200; // 랜덤 추가 대기 최대 0.2초
+    private final long maxJitterMs;
     /** 최대 대기 시간 (밀리초) */
-    private static final long MAX_WAIT_TIME_MS = 2000; // 2초
+    private final long maxWaitTimeMs;
 
     @Override
     public boolean shouldRetry(Exception e, int attemptCount) {
 
-        log.warn("랜덤 백오프 shouldRetry... attempt: {}, msg: {}", attemptCount, e.getMessage());
+        System.out.println(String.format("랜덤 백오프 shouldRetry... attempt: %d, msg: %s", attemptCount, e.getMessage()));
 
         // 최대 재시도 횟수 초과 시 중단
-        if (attemptCount >= MAX_RETRIES) {
+        if (attemptCount >= maxRetries) {
             return false;
         }
 
@@ -60,21 +85,21 @@ public class RandomBackoffRetryStrategy implements RetryStrategy {
 
     @Override
     public long getWaitTime(int attemptCount) {
-        log.warn("지수 백오프 getWaitTime... attempt: {}", attemptCount);
+        System.out.println(String.format("랜덤 백오프 getWaitTime... attempt: %d", attemptCount));
         return calculateBackoffTime(attemptCount);
     }
 
     /**
-     * 지수 백오프 방식으로 대기 시간을 계산합니다.
-     * 시도 횟수가 많아질수록 대기 시간이 증가하지만, MAX_WAIT_TIME_MS를 넘지 않습니다.
+     * 랜덤 백오프 방식으로 대기 시간을 계산합니다.
+     * 시도 횟수가 많아질수록 대기 시간이 증가하지만, maxWaitTimeMs를 넘지 않습니다.
      *
      * @param attempt 현재 시도 횟수
      * @return 대기 시간 (밀리초)
      */
     private long calculateBackoffTime(int attempt) {
-        // 기본: 100ms + (attempt * 50ms) + 랜덤값(0~200ms)
-        long baseWait = BASE_WAIT_TIME_MS + (attempt * 50L);
-        long randomWait = ThreadLocalRandom.current().nextLong(MAX_JITTER_MS);
-        return Math.min(baseWait + randomWait, MAX_WAIT_TIME_MS);
+        // 기본: baseWaitTimeMs + (attempt * 50ms) + 랜덤값(0~maxJitterMs)
+        long baseWait = baseWaitTimeMs + (attempt * 50L);
+        long randomWait = ThreadLocalRandom.current().nextLong(maxJitterMs);
+        return Math.min(baseWait + randomWait, maxWaitTimeMs);
     }
 }

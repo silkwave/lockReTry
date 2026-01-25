@@ -3,8 +3,8 @@ package com.example.lockretry.service;
 import com.example.lockretry.component.LockRetryTemplate;
 import com.example.lockretry.domain.AccountDto;
 import com.example.lockretry.mapper.AccountMapper;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,15 +14,20 @@ import java.math.BigDecimal;
  * 계좌 관련 비즈니스 로직을 처리하는 서비스 클래스입니다.
  * 주로 입금(deposit) 기능을 제공하며, 락 재시도 템플릿을 활용하여 동시성 문제를 관리합니다.
  */
-@Slf4j
 @Service
-@RequiredArgsConstructor
 public class AccountService {
+
+    private static final Logger log = LoggerFactory.getLogger(AccountService.class);
 
     /** 계좌 데이터베이스 접근을 위한 매퍼 */
     private final AccountMapper accountMapper;
     /** 락 충돌 시 재시도 로직을 실행하는 템플릿 */
     private final LockRetryTemplate lockRetryTemplate;
+
+    public AccountService(AccountMapper accountMapper, LockRetryTemplate lockRetryTemplate) {
+        this.accountMapper = accountMapper;
+        this.lockRetryTemplate = lockRetryTemplate;
+    }
 
     /**
      * 특정 계좌에 금액을 입금합니다.
