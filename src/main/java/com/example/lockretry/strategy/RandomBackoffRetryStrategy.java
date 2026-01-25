@@ -1,10 +1,12 @@
 package com.example.lockretry.strategy;
 
 import org.springframework.dao.PessimisticLockingFailureException;
+import org.springframework.dao.CannotAcquireLockException; // Added import
 import org.springframework.stereotype.Component;
 
 import lombok.extern.slf4j.Slf4j;
 
+import java.sql.SQLTimeoutException; // Correctly placed import
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
@@ -17,45 +19,52 @@ import java.util.concurrent.ThreadLocalRandom;
 public class RandomBackoffRetryStrategy implements RetryStrategy {
 
     /** 최대 재시도 횟수 */
-    private static final int MAX_RETRIES = 10;
+    private static final int MAX_RETRIES = 20; // Increased
     /** 재시도 간 기본 대기 시간 (밀리초) */
     private static final long BASE_WAIT_TIME_MS = 100; // 기본 대기 0.1초
     /** 기본 대기 시간에 추가될 랜덤 지터(Jitter)의 최대값 (밀리초) */
     private static final long MAX_JITTER_MS = 200; // 랜덤 추가 대기 최대 0.2초
     /** 최대 대기 시간 (밀리초) */
-    private static final long MAX_WAIT_TIME_MS = 2000; // 2초
+    private static final long MAX_WAIT_TIME_MS = 5000; // Increased
 
     @Override
     public boolean shouldRetry(Exception e, int attemptCount) {
-
         log.warn("랜덤 백오프 shouldRetry... attempt: {}, msg: {}", attemptCount, e.getMessage());
 
-        // 최대 재시도 횟수 초과 시 중단
         if (attemptCount >= MAX_RETRIES) {
             return false;
         }
 
-        // 락 획득 실패 예외이거나, 에러 메시지에서 락 충돌이 감지되면 재시도
-        return e instanceof PessimisticLockingFailureException || isLockConflict(e);
+        Throwable currentCause = e;
+        while (currentCause != null) {
+            if (currentCause instanceof PessimisticLockingFailureException
+                    || currentCause instanceof CannotAcquireLockException // Added check
+                    || currentCause instanceof SQLTimeoutException
+                    || isLockConflictMessage(currentCause.getMessage())) {
+                return true;
+            }
+            currentCause = currentCause.getCause();
+        }
+        return false; // No retryable cause found in the chain
     }
 
     /**
-     * 데이터베이스 락 충돌 여부를 판단합니다.
-     * 다양한 데이터베이스의 락 관련 에러 메시지를 감지합니다.
+     * 데이터베이스 락 충돌 메시지를 포함하는지 판단합니다.
+     * 다양한 데이터베이스의 락 관련 에러 메시지를 감지합니다。
      *
-     * @param e 발생한 예외
-     * @return 락 충돌이면 true, 그렇지 않으면 false
+     * @param message 예외 메시지
+     * @return 락 충돌 메시지이면 true, 그렇지 않으면 false
      */
-    private boolean isLockConflict(Exception e) {
-        // Oracle ORA-00054, H2 데이터베이스 락 메시지 확인
-        String message = e.getMessage() != null ? e.getMessage() : "";
+    private boolean isLockConflictMessage(String message) {
+        if (message == null) {
+            return false;
+        }
         return message.contains("ORA-00054")
                 || message.contains("Timeout trying to lock table")
                 || message.contains("Lock timeout")
                 || message.contains("busy")
-                || (e.getCause() != null &&
-                        e.getCause().getMessage() != null &&
-                        e.getCause().getMessage().contains("lock"));
+                || message.contains("deadlock")
+                || message.contains("JDBC rollback failed");
     }
 
     @Override
