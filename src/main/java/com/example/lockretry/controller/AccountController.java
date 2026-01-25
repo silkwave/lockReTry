@@ -29,7 +29,7 @@ public class AccountController {
      * @return 입금 성공 또는 실패에 따른 ResponseEntity
      */
     @PostMapping("/api/deposit")
-    public ResponseEntity<String> deposit(@RequestParam String accountNo, @RequestParam BigDecimal amount) {
+    public ResponseEntity<String> deposit(@RequestParam("accountNo") String accountNo, @RequestParam("amount") BigDecimal amount) {
         try {
             accountService.deposit(accountNo, amount);
             return ResponseEntity.ok("입금 성공: " + amount + "원 (계좌: " + accountNo + ")");

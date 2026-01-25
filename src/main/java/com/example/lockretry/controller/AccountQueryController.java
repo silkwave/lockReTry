@@ -15,7 +15,7 @@ public class AccountQueryController {
     private final AccountQueryMapper accountQueryMapper;
 
     @GetMapping("/api/account/{accountNo}")
-    public ResponseEntity<AccountDto> getAccount(@PathVariable String accountNo) {
+    public ResponseEntity<AccountDto> getAccount(@PathVariable("accountNo") String accountNo) {
         AccountDto account = accountQueryMapper.selectAccount(accountNo);
         if (account != null) {
             return ResponseEntity.ok(account);
