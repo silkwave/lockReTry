@@ -31,10 +31,9 @@ public class AccountService {
     }
 
     /**
-     * @Transactional을 제거합니다.
-     *                 재시도 루프는 트랜잭션 '밖'에서 돌아야 매번 깨끗한 상태로 시도할 수 있습니다.
+     * @Transactional을 제거합니다. 
+     * 재시도 루프는 트랜잭션 '밖'에서 돌아야 매번 깨끗한 상태로 시도할 수 있습니다.
      */
-    @Transactional
     public void deposit(String accountNo, BigDecimal amount) {
         log.debug("입금 요청 - 계좌: {}, 금액: {}", accountNo, amount);
 
@@ -52,7 +51,7 @@ public class AccountService {
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public Void doDepositInNewTransaction(String accountNo, BigDecimal amount) {
-        // MyBatis: SELECT FOR UPDATE NOWAIT
+        // MyBatis: SELECT FOR UPDATE NOWAIT 
         // 락 획득 실패 시 여기서 즉시 Exception 발생 -> Template이 Catch해서 Retry
         AccountDto account = accountMapper.selectAccountForUpdate(accountNo);
 
@@ -62,7 +61,7 @@ public class AccountService {
 
         account.setBalance(account.getBalance().add(amount));
         accountMapper.updateBalance(account);
-
+        
         return null;
     }
 }
