@@ -1,13 +1,15 @@
 package com.example.lockretry.service;
 
-import com.example.lockretry.template.AccountLockRetryTemplate;
+import com.example.lockretry.template.AbstractLockRetryTemplate;
 import com.example.lockretry.domain.AccountDto;
 import com.example.lockretry.mapper.AccountMapper;
-import com.example.lockretry.strategy.RetryStrategy; // RetryStrategy 임포트 추가
-import lombok.RequiredArgsConstructor;
+import com.example.lockretry.strategy.RetryStrategy;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Lazy; // Added import for Lazy
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Propagation; // Added import for Propagation
+
 import java.math.BigDecimal;
 
 /**
@@ -16,44 +18,50 @@ import java.math.BigDecimal;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class AccountService {
 
-    /** 계좌 데이터베이스 접근을 위한 매퍼 */
     private final AccountMapper accountMapper;
-    /** 락 충돌 시 재시도 로직을 실행하는 전략 */
-    private final RetryStrategy retryStrategy; // LockRetryTemplate 대신 RetryStrategy 주입
+    private final RetryStrategy retryStrategy;
+    private final AccountService self;
+
+    public AccountService(AccountMapper accountMapper, RetryStrategy retryStrategy, @Lazy AccountService self) {
+        this.accountMapper = accountMapper;
+        this.retryStrategy = retryStrategy;
+        this.self = self;
+    }
 
     /**
-     * 특정 계좌에 금액을 입금합니다.
-     * 트랜잭션 내에서 계좌 정보를 락을 걸어 조회하고, 잔액을 업데이트합니다.
-     * 락 획득 시도 중 충돌이 발생하면 LockRetryTemplate을 통해 재시도합니다.
-     *
-     * @param accountNo 입금할 계좌 번호
-     * @param amount 입금할 금액
-     * @throws IllegalArgumentException 계좌를 찾을 수 없을 경우
+     * @Transactional을 제거합니다. 
+     * 재시도 루프는 트랜잭션 '밖'에서 돌아야 매번 깨끗한 상태로 시도할 수 있습니다.
      */
-    @Transactional
     public void deposit(String accountNo, BigDecimal amount) {
         log.debug("입금 요청 - 계좌: {}, 금액: {}", accountNo, amount);
 
-        // 1. 락 획득 (재시도 전략 적용)
-        // 템플릿 메서드 패턴을 사용하여 락 획득 및 재시도 로직을 캡슐화
-        AccountLockRetryTemplate lockRetryOperation = new AccountLockRetryTemplate(retryStrategy, accountMapper, accountNo);
-        AccountDto account = lockRetryOperation.execute();
+        new AbstractLockRetryTemplate<Void>(retryStrategy) {
+            @Override
+            protected Void doInLockedSection() {
+                // 여기서 self 호출 시점에만 새 트랜잭션이 시작됨
+                return self.doDepositInNewTransaction(accountNo, amount);
+            }
+        }.execute();
+    }
+
+    /**
+     * 실제 비즈니스 로직: 각 시도는 완전히 독립적이어야 함.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public Void doDepositInNewTransaction(String accountNo, BigDecimal amount) {
+        // MyBatis: SELECT FOR UPDATE NOWAIT 
+        // 락 획득 실패 시 여기서 즉시 Exception 발생 -> Template이 Catch해서 Retry
+        AccountDto account = accountMapper.selectAccountForUpdate(accountNo);
 
         if (account == null) {
-            log.warn("계좌를 찾을 수 없습니다: {}", accountNo);
             throw new IllegalArgumentException("계좌를 찾을 수 없습니다: " + accountNo);
         }
 
-        log.debug("락 획득 성공. 현재 잔액: {}", account.getBalance());
-
-        // 2. 비즈니스 로직 수행: 잔액 증가
         account.setBalance(account.getBalance().add(amount));
-
-        // 3. 업데이트: 변경된 잔액을 데이터베이스에 반영
         accountMapper.updateBalance(account);
-        log.debug("입금 완료. 새로운 잔액: {}", account.getBalance());
+        
+        return null;
     }
 }
